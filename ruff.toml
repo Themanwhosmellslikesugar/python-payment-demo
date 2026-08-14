@@ -20,6 +20,8 @@ target-version = "py314"
 "src/payment_service/infrastructure/db/tables.py" = ["TC003"]
 # FastAPI резолвит Annotated-зависимости в рантайме
 "src/payment_service/api/payments.py" = ["TC001", "TC003"]
+# FastStream резолвит аннотации подписчиков в рантайме
+"src/payment_service/consumer/main.py" = ["TC001"]
 
 [lint.flake8-type-checking]
 runtime-evaluated-base-classes = ["pydantic.BaseModel"]
