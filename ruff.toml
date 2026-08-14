@@ -18,6 +18,11 @@ target-version = "py314"
 "alembic/**" = ["INP001"]
 # SQLAlchemy резолвит Mapped[...] в рантайме, TYPE_CHECKING-импорты невозможны
 "src/payment_service/infrastructure/db/tables.py" = ["TC003"]
+# FastAPI резолвит Annotated-зависимости в рантайме
+"src/payment_service/api/payments.py" = ["TC001", "TC003"]
+
+[lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 
 [lint.flake8-quotes]
 inline-quotes = "single"
