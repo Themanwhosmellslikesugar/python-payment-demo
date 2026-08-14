@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from payment_service.domain.models import Payment
 from payment_service.infrastructure.db.tables import OutboxTable, PaymentTable
@@ -24,9 +25,15 @@ class PaymentRepository:
         """Запомнить сессию."""
         self._session = session
 
-    async def add(self, payment: Payment) -> None:
-        """Сохранить новый платёж."""
-        self._session.add(self._to_table(payment))
+    async def add_if_absent(self, payment: Payment) -> bool:
+        """Вставить платёж; вернуть False, если idempotency key уже занят."""
+        stmt = (
+            pg_insert(PaymentTable)
+            .values(**self._to_values(payment))
+            .on_conflict_do_nothing(index_elements=['idempotency_key'])
+            .returning(PaymentTable.id)
+        )
+        return await self._session.scalar(stmt) is not None
 
     async def get(self, payment_id: UUID) -> Payment | None:
         """Найти платёж по id."""
@@ -59,19 +66,23 @@ class PaymentRepository:
         )
 
     @staticmethod
+    def _to_values(payment: Payment) -> dict[str, Any]:
+        return {
+            'id': payment.id,
+            'amount': payment.amount,
+            'currency': payment.currency,
+            'description': payment.description,
+            'meta': payment.meta,
+            'webhook_url': payment.webhook_url,
+            'idempotency_key': payment.idempotency_key,
+            'status': payment.status,
+            'created_at': payment.created_at,
+            'processed_at': payment.processed_at,
+        }
+
+    @staticmethod
     def _to_table(payment: Payment) -> PaymentTable:
-        return PaymentTable(
-            id=payment.id,
-            amount=payment.amount,
-            currency=payment.currency,
-            description=payment.description,
-            meta=payment.meta,
-            webhook_url=payment.webhook_url,
-            idempotency_key=payment.idempotency_key,
-            status=payment.status,
-            created_at=payment.created_at,
-            processed_at=payment.processed_at,
-        )
+        return PaymentTable(**PaymentRepository._to_values(payment))
 
 
 class OutboxRepository:

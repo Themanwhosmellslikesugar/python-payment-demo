@@ -28,21 +28,24 @@ class PaymentNotFoundError(Exception):
 
 async def create_payment(command: CreatePayment, uow: UnitOfWork) -> Payment:
     """Создать платёж и событие в outbox одной транзакцией."""
+    payment = Payment(
+        amount=command.amount,
+        currency=command.currency,
+        description=command.description,
+        meta=command.meta,
+        webhook_url=command.webhook_url,
+        idempotency_key=command.idempotency_key,
+    )
+
     async with uow:
-        existing = await uow.payments.get_by_idempotency_key(command.idempotency_key)
-        if existing is not None:
+        if not await uow.payments.add_if_absent(payment):
+            existing = await uow.payments.get_by_idempotency_key(command.idempotency_key)
+            if existing is None:
+                msg = 'Платёж не найден после конфликта по idempotency key'
+                raise RuntimeError(msg)
+
             return existing
 
-        payment = Payment(
-            amount=command.amount,
-            currency=command.currency,
-            description=command.description,
-            meta=command.meta,
-            webhook_url=command.webhook_url,
-            idempotency_key=command.idempotency_key,
-        )
-
-        await uow.payments.add(payment)
         await uow.outbox.add('payment.created', {'payment_id': str(payment.id)})
         await uow.commit()
 
