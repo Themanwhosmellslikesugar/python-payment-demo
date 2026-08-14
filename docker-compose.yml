@@ -1,3 +1,12 @@
+x-app-env: &app-env
+  DATABASE_HOST: postgres
+  DATABASE_PORT: 5432
+  DATABASE_USER: postgres
+  DATABASE_PASSWORD: postgres
+  DATABASE_DB: payments
+  RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+  API_KEY: dev-api-key
+
 services:
   postgres:
     image: postgres:18@sha256:cd78ca58eb75f929698e117a589488ccb2bd45107247fe02400b50ff6c418324
@@ -30,6 +39,33 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  migrate:
+    build: .
+    command: alembic upgrade head
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: .
+    environment: *app-env
+    ports:
+      - '8080:8000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  consumer:
+    build: .
+    command: python -m payment_service.consumer.main
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   postgres-data:
