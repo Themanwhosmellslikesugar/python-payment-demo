@@ -1,0 +1,29 @@
+line-length = 100
+
+lint.select = ["ALL", "FA"]
+
+lint.ignore = [
+    "COM812",  # missing-trailing-comma
+    "CPY001",  # missing-copyright-notice
+    "D203",    # incorrect-blank-line-before-class
+    "D205",    # missing-blank-line-after-summary
+    "D213",    # multi-line-summary-second-line
+    "RUF001",  # ambiguous-unicode-character-string
+    "RUF002",  # ambiguous-unicode-character-docstring
+]
+
+target-version = "py314"
+
+[lint.per-file-ignores]
+"alembic/**" = ["INP001"]
+# SQLAlchemy резолвит Mapped[...] в рантайме, TYPE_CHECKING-импорты невозможны
+"src/payment_service/infrastructure/db/tables.py" = ["TC003"]
+
+[lint.flake8-quotes]
+inline-quotes = "single"
+
+[lint.pylint]
+max-args = 6
+
+[format]
+quote-style = "single"
