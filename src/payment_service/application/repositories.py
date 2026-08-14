@@ -11,6 +11,7 @@ from payment_service.domain.models import Payment
 from payment_service.infrastructure.db.tables import OutboxTable, PaymentTable
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from uuid import UUID
 
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,6 +38,10 @@ class PaymentRepository:
         stmt = select(PaymentTable).where(PaymentTable.idempotency_key == key)
         row = await self._session.scalar(stmt)
         return self._to_domain(row) if row is not None else None
+
+    async def update(self, payment: Payment) -> None:
+        """Обновить платёж."""
+        await self._session.merge(self._to_table(payment))
 
     @staticmethod
     def _to_domain(row: PaymentTable) -> Payment:
@@ -80,3 +85,20 @@ class OutboxRepository:
         """Добавить событие в outbox."""
         row = OutboxTable(event_type=event_type, payload=payload, created_at=datetime.now(UTC))
         self._session.add(row)
+
+    async def fetch_unsent(self, limit: int = 100) -> Sequence[OutboxTable]:
+        """Вернуть неотправленные события."""
+        stmt = (
+            select(OutboxTable)
+            .where(OutboxTable.sent_at.is_(None))
+            .order_by(OutboxTable.created_at)
+            .limit(limit)
+        )
+        result = await self._session.scalars(stmt)
+        return result.all()
+
+    async def mark_sent(self, event_id: UUID) -> None:
+        """Пометить событие отправленным."""
+        row = await self._session.get(OutboxTable, event_id)
+        if row is not None:
+            row.sent_at = datetime.now(UTC)

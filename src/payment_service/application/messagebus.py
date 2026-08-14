@@ -25,3 +25,5 @@ class MessageBus:
                 return await handlers.create_payment(message, self._uow)
             case commands.GetPayment():
                 return await handlers.get_payment(message, self._uow)
+            case commands.ProcessPayment():
+                return await handlers.process_payment(message, self._uow)

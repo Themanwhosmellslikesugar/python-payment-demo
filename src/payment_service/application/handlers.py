@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from payment_service.domain.enums import PaymentStatus
 from payment_service.domain.models import Payment
+from payment_service.infrastructure.gateway import emulate_processing
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from payment_service.application.commands import CreatePayment, GetPayment
+    from payment_service.application.commands import CreatePayment, GetPayment, ProcessPayment
     from payment_service.application.uow import UnitOfWork
 
 
@@ -52,5 +55,24 @@ async def get_payment(command: GetPayment, uow: UnitOfWork) -> Payment:
         payment = await uow.payments.get(command.payment_id)
         if payment is None:
             raise PaymentNotFoundError(command.payment_id)
+
+        return payment
+
+
+async def process_payment(command: ProcessPayment, uow: UnitOfWork) -> Payment:
+    """Провести платёж через эмуляцию шлюза и обновить статус."""
+    async with uow:
+        payment = await uow.payments.get(command.payment_id)
+        if payment is None:
+            raise PaymentNotFoundError(command.payment_id)
+        if payment.status is not PaymentStatus.PENDING:
+            return payment
+
+        success = await emulate_processing()
+        payment.status = PaymentStatus.SUCCEEDED if success else PaymentStatus.FAILED
+        payment.processed_at = datetime.now(UTC)
+
+        await uow.payments.update(payment)
+        await uow.commit()
 
         return payment

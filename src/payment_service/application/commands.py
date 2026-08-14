@@ -31,4 +31,11 @@ class GetPayment:
     payment_id: UUID
 
 
-type Command = CreatePayment | GetPayment
+@dataclass(frozen=True)
+class ProcessPayment:
+    """Обработать платёж через платёжный шлюз."""
+
+    payment_id: UUID
+
+
+type Command = CreatePayment | GetPayment | ProcessPayment

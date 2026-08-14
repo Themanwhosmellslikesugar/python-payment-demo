@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     api_key: str = 'dev-api-key'
 
     webhook_retry_attempts: int = 3
+    consumer_max_attempts: int = 3
     outbox_poll_interval: float = 1.0
 
     @property
