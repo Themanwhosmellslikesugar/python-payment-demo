@@ -29,3 +29,37 @@ make migrate       # alembic upgrade head (локально, против compos
 make run-api       # локальный запуск API с reload
 make run-consumer  # локальный запуск consumer'а
 ```
+
+## API
+
+Все эндпоинты требуют заголовок `X-API-Key` (по умолчанию `dev-api-key`).
+
+Создание платежа (обязателен заголовок `Idempotency-Key`):
+
+```bash
+curl -X POST http://localhost:8080/api/v1/payments \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: dev-api-key' \
+  -H 'Idempotency-Key: order-42' \
+  -d '{
+    "amount": "100.50",
+    "currency": "RUB",
+    "description": "Оплата заказа",
+    "metadata": {"order_id": 42},
+    "webhook_url": "http://example.com/hook"
+  }'
+```
+
+Ответ `202 Accepted`:
+
+```json
+{"payment_id": "...", "status": "pending", "created_at": "..."}
+```
+
+Повторный запрос с тем же `Idempotency-Key` вернёт тот же платёж.
+
+Получение платежа:
+
+```bash
+curl http://localhost:8080/api/v1/payments/{payment_id} -H 'X-API-Key: dev-api-key'
+```
